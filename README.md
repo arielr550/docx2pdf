@@ -14,24 +14,53 @@ High-fidelity DOCX to PDF conversion using LibreOffice headless mode.
 - `uv` installed
 - LibreOffice installed with `soffice` available in `PATH`
 
-## Usage
+## Easiest usage on macOS
 
-Run with Python entry point:
+Open `dist/DOCX to PDF.app`, then choose one or more Word documents. You can also
+drag DOCX files directly onto the app. Each PDF is saved beside its original DOCX,
+so there is no output path to type or remember.
+
+If a PDF with the same name already exists, the app asks before replacing it.
+Everything runs locally through LibreOffice; the app makes no network calls.
+
+To build or refresh the app after changing the source:
 
 ```bash
-uv run python main.py input.docx output.pdf
+uv run --offline python scripts/build_macos_app.py
 ```
 
-Or via lightweight launcher:
+The resulting app is self-contained with respect to this project's Python source,
+so it can be moved to `/Applications` or the Desktop. It still requires `uv` and
+LibreOffice to be installed on the Mac.
+
+## Battery and performance
+
+- The app runs only when opened or when files are dropped onto it.
+- It installs no login item, background service, watcher, or scheduled task.
+- LibreOffice exits after each conversion and is limited by a 60-second timeout.
+- The app uses an isolated temporary LibreOffice profile and removes it afterward.
+- `uv` runs offline, so conversion never performs update or network checks.
+
+## Terminal usage
+
+The short form saves the PDF beside the DOCX:
 
 ```bash
-./docx2pdf input.docx output.pdf
+./docx2pdf "/any/location/report.docx"
+```
+
+You can drag a file from Finder into Terminal instead of typing its path.
+
+To choose a different output path:
+
+```bash
+uv run --offline python main.py input.docx output.pdf
 ```
 
 Overwrite existing output only when explicit:
 
 ```bash
-uv run python main.py input.docx output.pdf --overwrite
+uv run --offline python main.py input.docx output.pdf --overwrite
 ```
 
 ## Behavior
@@ -46,8 +75,14 @@ uv run python main.py input.docx output.pdf --overwrite
 
 ```text
 project_root/
+├── dist/
+│   └── DOCX to PDF.app
 ├── docx2pdf
+├── conversion.py
+├── desktop.py
 ├── main.py
+├── scripts/
+│   └── build_macos_app.py
 ├── converters/
 │   ├── base.py
 │   └── libreoffice.py
@@ -62,5 +97,5 @@ project_root/
 To add new conversions:
 
 1. Add a new converter class implementing `Converter`.
-2. Extend `select_converter(...)` in `main.py` with new input/output routing.
+2. Extend `select_converter(...)` in `conversion.py` with new input/output routing.
 3. Keep CLI unchanged.

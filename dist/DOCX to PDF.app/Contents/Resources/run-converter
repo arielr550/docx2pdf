@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+
+RESOURCE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROJECT_DIR="$RESOURCE_DIR/project"
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+export UV_CACHE_DIR="${TMPDIR:-/tmp}/docxpdf-uv-cache"
+export PYTHONDONTWRITEBYTECODE=1
+
+if command -v uv >/dev/null 2>&1; then
+    UV_BINARY=$(command -v uv)
+else
+    osascript -e 'display alert "DOCX to PDF needs uv" message "Install uv, then open the app again." as critical'
+    exit 1
+fi
+
+exec "$UV_BINARY" run --offline --no-project --python 3.14 python "$PROJECT_DIR/desktop.py" "$@"

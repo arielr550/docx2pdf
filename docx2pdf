@@ -1,4 +1,17 @@
 #!/usr/bin/env sh
 
 set -eu
-uv run python main.py "$@"
+
+LAUNCHER_PATH=$0
+while [ -L "$LAUNCHER_PATH" ]; do
+    LINK_TARGET=$(readlink "$LAUNCHER_PATH")
+    case "$LINK_TARGET" in
+        /*) LAUNCHER_PATH=$LINK_TARGET ;;
+        *) LAUNCHER_PATH=$(dirname "$LAUNCHER_PATH")/$LINK_TARGET ;;
+    esac
+done
+
+PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$LAUNCHER_PATH")" && pwd)
+DOCXPDF_CACHE_DIR=${UV_CACHE_DIR:-${TMPDIR:-/tmp}/docxpdf-uv-cache}
+export UV_CACHE_DIR=$DOCXPDF_CACHE_DIR
+exec uv run --offline --project "$PROJECT_DIR" python "$PROJECT_DIR/main.py" "$@"
