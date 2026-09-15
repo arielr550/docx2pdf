@@ -31,6 +31,8 @@ so there is no output path to type or remember.
 
 If a PDF with the same name already exists, the app asks before replacing it.
 Everything runs locally through LibreOffice; the app makes no network calls.
+Images a document only links to on the web are not downloaded, so they are left
+out of the PDF.
 
 The app is self-contained with respect to this project's Python source, so it can
 be moved to `/Applications` or the Desktop. It still requires `uv` and LibreOffice

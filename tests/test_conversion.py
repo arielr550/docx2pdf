@@ -136,6 +136,37 @@ class LibreOfficeConverterTests(unittest.TestCase):
         self.assertNotIn(self.profile_cache.as_uri(), self.profile_used(run))
         self.assertIn("docxpdf_lo_profile_", self.profile_used(run))
 
+    def run_with_fake_soffice(self) -> None:
+        with tempfile.TemporaryDirectory() as output_dir:
+            with patch("converters.libreoffice.subprocess.run", side_effect=fake_soffice(b"pdf")):
+                LibreOfficeConverter()._run_soffice(Path("report.docx"), Path(output_dir))
+
+    def test_profile_blocks_remote_links(self) -> None:
+        self.run_with_fake_soffice()
+
+        registry = (self.profile_cache / "user" / "registrymodifications.xcu").read_text()
+        self.assertIn(
+            '<prop oor:name="BlockUntrustedRefererLinks" oor:op="fuse"><value>true</value></prop>',
+            registry,
+        )
+
+    def test_existing_profile_settings_are_kept(self) -> None:
+        registry = self.profile_cache / "user" / "registrymodifications.xcu"
+        registry.parent.mkdir(parents=True)
+        other = '<item oor:path="/org.openoffice.Setup/Office"><prop oor:name="ooSetupInstCompleted" oor:op="fuse"><value>true</value></prop></item>'
+        registry.write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<oor:items xmlns:oor="http://openoffice.org/2001/registry">\n'
+            f"{other}\n</oor:items>\n"
+        )
+
+        self.run_with_fake_soffice()
+        self.run_with_fake_soffice()
+
+        text = registry.read_text()
+        self.assertIn(other, text)
+        self.assertEqual(text.count("BlockUntrustedRefererLinks"), 1)
+
     def test_timeout_is_bounded_and_reported(self) -> None:
         timeout = subprocess.TimeoutExpired(cmd=["soffice"], timeout=1)
         with patch("converters.libreoffice.subprocess.run", side_effect=timeout):

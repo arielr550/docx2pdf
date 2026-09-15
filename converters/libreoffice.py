@@ -44,6 +44,35 @@ def clean_stderr(stderr: str) -> str:
     return "\n".join(lines).strip()
 
 
+# LibreOffice downloads images that a document only links to on the web while
+# rendering it. Treating documents as untrusted blocks those requests.
+BLOCK_REMOTE_LINKS = (
+    '<item oor:path="/org.openoffice.Office.Common/Security/Scripting">'
+    '<prop oor:name="BlockUntrustedRefererLinks" oor:op="fuse"><value>true</value></prop>'
+    "</item>"
+)
+EMPTY_REGISTRY = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<oor:items xmlns:oor="http://openoffice.org/2001/registry" '
+    'xmlns:xs="http://www.w3.org/2001/XMLSchema" '
+    'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
+    "</oor:items>\n"
+)
+
+
+def block_remote_links(profile: Path) -> None:
+    registry = profile / "user" / "registrymodifications.xcu"
+    text = registry.read_text(encoding="utf-8") if registry.exists() else EMPTY_REGISTRY
+    if BLOCK_REMOTE_LINKS in text:
+        return
+    if "</oor:items>" not in text:
+        text = EMPTY_REGISTRY
+    registry.parent.mkdir(parents=True, exist_ok=True)
+    registry.write_text(
+        text.replace("</oor:items>", f"{BLOCK_REMOTE_LINKS}\n</oor:items>"), encoding="utf-8"
+    )
+
+
 def profile_cache_dir() -> Path:
     if sys.platform == "darwin":
         base = Path.home() / "Library" / "Caches"
@@ -71,6 +100,7 @@ def libreoffice_profile() -> Iterator[Path]:
             profile = Path(
                 stack.enter_context(tempfile.TemporaryDirectory(prefix="docxpdf_lo_profile_"))
             )
+        block_remote_links(profile)
         yield profile
 
 
