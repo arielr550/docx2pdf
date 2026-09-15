@@ -3,7 +3,9 @@ from __future__ import annotations
 import tempfile
 import unittest
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 from conversion import convert_document
 from converters.libreoffice import find_soffice
@@ -55,6 +57,23 @@ class LibreOfficeIntegrationTests(unittest.TestCase):
                 convert_document(input_path, overwrite=True)
 
             self.assertEqual(stale.read_bytes(), b"old pdf")
+
+    def test_concurrent_conversions_both_succeed(self) -> None:
+        # Two soffice processes sharing one profile make one exit 0 without output.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            docs = [Path(temp_dir) / f"doc{i}.docx" for i in range(2)]
+            for doc in docs:
+                write_minimal_docx(doc)
+
+            profile_cache = Path(temp_dir) / "cache" / "lo-profile"
+            with (
+                patch("converters.libreoffice.profile_cache_dir", return_value=profile_cache),
+                ThreadPoolExecutor(max_workers=2) as pool,
+            ):
+                outputs = list(pool.map(convert_document, docs))
+
+            for output in outputs:
+                self.assertTrue(output.read_bytes().startswith(b"%PDF"))
 
 
 if __name__ == "__main__":

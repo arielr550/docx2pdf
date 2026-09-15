@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fcntl
 import subprocess
 import tempfile
 import unittest
@@ -101,6 +102,39 @@ class LibreOfficeConverterTests(unittest.TestCase):
         which = patch("converters.libreoffice.shutil.which", return_value="/usr/bin/soffice")
         which.start()
         self.addCleanup(which.stop)
+        cache_root = tempfile.TemporaryDirectory()
+        self.addCleanup(cache_root.cleanup)
+        self.profile_cache = Path(cache_root.name) / "docx2pdf" / "lo-profile"
+        cache = patch(
+            "converters.libreoffice.profile_cache_dir", return_value=self.profile_cache
+        )
+        cache.start()
+        self.addCleanup(cache.stop)
+
+    def profile_used(self, run: Mock) -> str:
+        return next(arg for arg in run.call_args.args[0] if arg.startswith("-env:UserInstallation="))
+
+    def test_cached_profile_is_reused_when_free(self) -> None:
+        with tempfile.TemporaryDirectory() as output_dir:
+            with patch(
+                "converters.libreoffice.subprocess.run", side_effect=fake_soffice(b"pdf")
+            ) as run:
+                LibreOfficeConverter()._run_soffice(Path("report.docx"), Path(output_dir))
+
+        self.assertEqual(self.profile_used(run), f"-env:UserInstallation={self.profile_cache.as_uri()}")
+
+    def test_concurrent_run_falls_back_to_temporary_profile(self) -> None:
+        self.profile_cache.parent.mkdir(parents=True)
+        with open(self.profile_cache.parent / "lo-profile.lock", "w") as held:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with tempfile.TemporaryDirectory() as output_dir:
+                with patch(
+                    "converters.libreoffice.subprocess.run", side_effect=fake_soffice(b"pdf")
+                ) as run:
+                    LibreOfficeConverter()._run_soffice(Path("report.docx"), Path(output_dir))
+
+        self.assertNotIn(self.profile_cache.as_uri(), self.profile_used(run))
+        self.assertIn("docxpdf_lo_profile_", self.profile_used(run))
 
     def test_timeout_is_bounded_and_reported(self) -> None:
         timeout = subprocess.TimeoutExpired(cmd=["soffice"], timeout=1)

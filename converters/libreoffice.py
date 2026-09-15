@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import fcntl
+import os
 import shutil
 import subprocess
+import sys
 import tempfile
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 from converters.base import Converter
@@ -37,6 +42,36 @@ def clean_stderr(stderr: str) -> str:
     return "\n".join(lines).strip()
 
 
+def profile_cache_dir() -> Path:
+    if sys.platform == "darwin":
+        base = Path.home() / "Library" / "Caches"
+    else:
+        base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    return base / "docx2pdf" / "lo-profile"
+
+
+@contextmanager
+def libreoffice_profile() -> Iterator[Path]:
+    """Yield a LibreOffice user profile directory for one soffice run.
+
+    A reused profile skips LibreOffice's first-start setup. Two soffice
+    processes must not share a profile, so the cached one is used only while
+    holding its lock; a concurrent run gets a throwaway profile instead.
+    """
+    cache = profile_cache_dir()
+    with ExitStack() as stack:
+        profile = cache
+        try:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            lock = stack.enter_context(open(cache.parent / "lo-profile.lock", "w"))
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            profile = Path(
+                stack.enter_context(tempfile.TemporaryDirectory(prefix="docxpdf_lo_profile_"))
+            )
+        yield profile
+
+
 class LibreOfficeConverter(Converter):
     def __init__(self, soffice_binary: str = "soffice", timeout_seconds: int = 60) -> None:
         resolved = find_soffice(soffice_binary)
@@ -66,10 +101,10 @@ class LibreOfficeConverter(Converter):
             shutil.move(str(produced), str(dst))
 
     def _run_soffice(self, input_file: Path, output_dir: Path) -> subprocess.CompletedProcess[str]:
-        with tempfile.TemporaryDirectory(prefix="docxpdf_lo_profile_") as profile_dir:
+        with libreoffice_profile() as profile_dir:
             command = [
                 self.soffice_binary,
-                f"-env:UserInstallation={Path(profile_dir).as_uri()}",
+                f"-env:UserInstallation={profile_dir.as_uri()}",
                 "--headless",
             ]
             input_filter = INPUT_FILTERS.get(input_file.suffix.lower())

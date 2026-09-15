@@ -41,7 +41,10 @@ to be installed on the Mac. `dist/` is a build output and is not committed.
 - The app runs only when opened or when files are dropped onto it.
 - It installs no login item, background service, watcher, or scheduled task.
 - LibreOffice exits after each conversion and is limited by a 60-second timeout.
-- The app uses an isolated temporary LibreOffice profile and removes it afterward.
+- LibreOffice uses a private profile cached in `~/Library/Caches/docx2pdf/lo-profile`
+  (about 0.5 MB), which skips its first-start setup on every conversion. A
+  concurrent conversion gets a temporary profile instead of sharing it. Delete the
+  folder to reset it.
 - `uv` runs offline, so conversion never performs update or network checks.
 
 ## Terminal usage
