@@ -7,47 +7,52 @@ from pathlib import Path
 
 from converters.base import Converter
 
+# LibreOffice's .dmg installer does not put soffice on PATH.
+MACOS_SOFFICE_CANDIDATES = (
+    Path("/Applications/LibreOffice.app/Contents/MacOS/soffice"),
+    Path.home() / "Applications/LibreOffice.app/Contents/MacOS/soffice",
+)
+
+
+def find_soffice(binary: str = "soffice") -> str | None:
+    found = shutil.which(binary)
+    if found is not None:
+        return found
+    for candidate in MACOS_SOFFICE_CANDIDATES:
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
 
 class LibreOfficeConverter(Converter):
     def __init__(self, soffice_binary: str = "soffice", timeout_seconds: int = 60) -> None:
-        self.soffice_binary = soffice_binary
+        resolved = find_soffice(soffice_binary)
+        if resolved is None:
+            raise RuntimeError(
+                "LibreOffice binary 'soffice' was not found in PATH or /Applications. "
+                "Install LibreOffice and ensure 'soffice' is accessible."
+            )
+        self.soffice_binary = resolved
         self.timeout_seconds = timeout_seconds
-        self._assert_soffice_available()
 
     def convert(self, input_path: str, output_path: str) -> None:
         src = Path(input_path)
         dst = Path(output_path)
 
-        expected_pdf_name = f"{src.stem}.pdf"
-        can_write_directly = dst.name == expected_pdf_name
-
-        if can_write_directly:
-            self._run_soffice(src, dst.parent)
-            produced = dst.parent / expected_pdf_name
-            if not produced.exists():
-                raise RuntimeError(
-                    f"LibreOffice did not produce expected output file: {produced}"
-                )
-            return
-
+        # Always render into an empty directory: LibreOffice can exit 0 without
+        # writing anything, so an existing PDF at dst must never count as output.
         with tempfile.TemporaryDirectory(prefix="docxpdf_") as temp_dir:
             temp_dir_path = Path(temp_dir)
-            self._run_soffice(src, temp_dir_path)
-            produced = temp_dir_path / expected_pdf_name
+            result = self._run_soffice(src, temp_dir_path)
+            produced = temp_dir_path / f"{src.stem}.pdf"
             if not produced.exists():
                 raise RuntimeError(
-                    f"LibreOffice did not produce expected output file: {produced}"
+                    f"LibreOffice did not produce a PDF for {src.name}. "
+                    f"stderr='{result.stderr.strip()}'"
                 )
             shutil.move(str(produced), str(dst))
 
-    def _assert_soffice_available(self) -> None:
-        if shutil.which(self.soffice_binary) is None:
-            raise RuntimeError(
-                "LibreOffice binary 'soffice' was not found in PATH. "
-                "Install LibreOffice and ensure 'soffice' is accessible."
-            )
-
-    def _run_soffice(self, input_file: Path, output_dir: Path) -> None:
+    def _run_soffice(self, input_file: Path, output_dir: Path) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory(prefix="docxpdf_lo_profile_") as profile_dir:
             command = [
                 self.soffice_binary,
@@ -78,3 +83,4 @@ class LibreOfficeConverter(Converter):
                 "LibreOffice conversion command failed "
                 f"(exit={result.returncode}). stdout='{stdout}' stderr='{stderr}'"
             )
+        return result

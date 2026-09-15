@@ -6,9 +6,29 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from conversion import convert_document, default_output_path
+import desktop
+import main
+from conversion import convert_document, default_output_path, select_converter
 from converters.libreoffice import LibreOfficeConverter
 from desktop import format_summary
+
+
+def fake_soffice(pdf_bytes: bytes | None):
+    """Return a subprocess.run stand-in that behaves like a successful soffice exit.
+
+    When pdf_bytes is None it writes nothing, mimicking LibreOffice's habit of
+    exiting 0 when it cannot load the source document.
+    """
+
+    def run(command, **kwargs):
+        if pdf_bytes is not None:
+            output_dir = Path(command[command.index("--outdir") + 1])
+            (output_dir / f"{Path(command[-1]).stem}.pdf").write_bytes(pdf_bytes)
+        return subprocess.CompletedProcess(
+            command, 0, stdout="", stderr="" if pdf_bytes else "Error: source file could not be loaded"
+        )
+
+    return run
 
 
 class ConversionTests(unittest.TestCase):
@@ -41,6 +61,10 @@ class ConversionTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 convert_document(input_path)
 
+    def test_unsupported_conversion_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Unsupported conversion"):
+            select_converter(Path("report.docx"), Path("report.txt"))
+
     def test_desktop_summary_reports_batch_and_skips(self) -> None:
         converted = [Path("one.pdf"), Path("two.pdf")]
         self.assertEqual(
@@ -48,15 +72,99 @@ class ConversionTests(unittest.TestCase):
             "Created 2 PDFs beside the originals. Skipped 1 existing file.",
         )
 
-    def test_libreoffice_timeout_is_bounded_and_reported(self) -> None:
-        timeout = subprocess.TimeoutExpired(cmd=["soffice"], timeout=1)
+    def test_desktop_skips_existing_output_when_not_confirmed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = Path(temp_dir) / "report.docx"
+            input_path.touch()
+            input_path.with_suffix(".pdf").touch()
+
+            with (
+                patch("desktop.confirm_overwrite", return_value=False),
+                patch("desktop.convert_document") as convert,
+            ):
+                converted, errors, skipped = desktop.convert_files([str(input_path)])
+
+            self.assertEqual((converted, errors, skipped), ([], [], 1))
+            convert.assert_not_called()
+
+    def test_cli_returns_nonzero_on_failure(self) -> None:
         with (
-            patch("converters.libreoffice.shutil.which", return_value="/usr/bin/soffice"),
-            patch("converters.libreoffice.subprocess.run", side_effect=timeout),
+            patch("sys.argv", ["main.py", "missing.docx"]),
+            patch("main.convert_document", side_effect=FileNotFoundError("nope")),
+            self.assertLogs(level="ERROR"),
         ):
+            self.assertEqual(main.main(), 1)
+
+
+class LibreOfficeConverterTests(unittest.TestCase):
+    def setUp(self) -> None:
+        which = patch("converters.libreoffice.shutil.which", return_value="/usr/bin/soffice")
+        which.start()
+        self.addCleanup(which.stop)
+
+    def test_timeout_is_bounded_and_reported(self) -> None:
+        timeout = subprocess.TimeoutExpired(cmd=["soffice"], timeout=1)
+        with patch("converters.libreoffice.subprocess.run", side_effect=timeout):
             converter = LibreOfficeConverter(timeout_seconds=1)
             with self.assertRaisesRegex(RuntimeError, "timed out after 1 seconds"):
                 converter._run_soffice(Path("input.docx"), Path("."))
+
+    def test_stale_pdf_is_not_reported_as_success(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            src = Path(temp_dir) / "report.docx"
+            dst = Path(temp_dir) / "report.pdf"
+            src.touch()
+            dst.write_bytes(b"old pdf")
+
+            with patch("converters.libreoffice.subprocess.run", side_effect=fake_soffice(None)):
+                with self.assertRaisesRegex(RuntimeError, "could not be loaded"):
+                    LibreOfficeConverter().convert(str(src), str(dst))
+
+            self.assertEqual(dst.read_bytes(), b"old pdf")
+
+    def test_output_replaces_existing_pdf_with_same_name(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            src = Path(temp_dir) / "report.docx"
+            dst = Path(temp_dir) / "report.pdf"
+            src.touch()
+            dst.write_bytes(b"old pdf")
+
+            with patch("converters.libreoffice.subprocess.run", side_effect=fake_soffice(b"new pdf")):
+                LibreOfficeConverter().convert(str(src), str(dst))
+
+            self.assertEqual(dst.read_bytes(), b"new pdf")
+
+    def test_output_can_use_a_different_name(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            src = Path(temp_dir) / "report.docx"
+            dst = Path(temp_dir) / "final.pdf"
+            src.touch()
+
+            with patch("converters.libreoffice.subprocess.run", side_effect=fake_soffice(b"new pdf")):
+                LibreOfficeConverter().convert(str(src), str(dst))
+
+            self.assertEqual(dst.read_bytes(), b"new pdf")
+            self.assertFalse((Path(temp_dir) / "report.pdf").exists())
+
+
+class SofficeLookupTests(unittest.TestCase):
+    def test_falls_back_to_macos_app_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            bundled = Path(temp_dir) / "soffice"
+            bundled.touch()
+            with (
+                patch("converters.libreoffice.shutil.which", return_value=None),
+                patch("converters.libreoffice.MACOS_SOFFICE_CANDIDATES", (bundled,)),
+            ):
+                self.assertEqual(LibreOfficeConverter().soffice_binary, str(bundled))
+
+    def test_missing_soffice_fails_clearly(self) -> None:
+        with (
+            patch("converters.libreoffice.shutil.which", return_value=None),
+            patch("converters.libreoffice.MACOS_SOFFICE_CANDIDATES", ()),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "was not found"):
+                LibreOfficeConverter()
 
 
 if __name__ == "__main__":
