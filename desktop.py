@@ -19,7 +19,7 @@ def confirm_overwrite(output_path: Path) -> bool:
 on run argv
     set outputName to item 1 of argv
     set answer to display dialog (outputName & " already exists. Replace it?") ¬
-        with title "DOCX to PDF" buttons {"Skip", "Replace"} default button "Replace" ¬
+        with title "DOCX to PDF" buttons {"Skip", "Replace"} default button "Skip" ¬
         cancel button "Skip" with icon caution
     return button returned of answer
 end run
@@ -77,7 +77,7 @@ def main() -> int:
     converted, errors, skipped = convert_files(args.files)
 
     if errors:
-        print("\n".join(errors), file=sys.stderr)
+        print("\n".join([format_summary(converted, skipped), *errors]), file=sys.stderr)
         return 1
 
     print(format_summary(converted, skipped))

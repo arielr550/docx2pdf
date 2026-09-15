@@ -3,9 +3,8 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from pathlib import Path
 
-from conversion import convert_document, default_output_path
+from conversion import convert_document
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -35,21 +34,12 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
-    input_path = Path(args.input_file).expanduser().resolve()
-    output_path = (
-        Path(args.output_file).expanduser().resolve()
-        if args.output_file
-        else default_output_path(input_path)
-    )
-
-    logging.info(
-        "Conversion started: input=%s output=%s engine=libreoffice",
-        input_path,
-        output_path,
-    )
+    logging.info("Conversion started: input=%s", args.input_file)
 
     try:
-        convert_document(input_path, output_path, overwrite=args.overwrite)
+        output_path = convert_document(
+            args.input_file, args.output_file or None, overwrite=args.overwrite
+        )
     except Exception as exc:
         logging.error("Conversion failed: %s", exc)
         return 1

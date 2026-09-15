@@ -71,7 +71,7 @@ set -eu
 
 RESOURCE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR="$RESOURCE_DIR/project"
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 export UV_CACHE_DIR="${TMPDIR:-/tmp}/docxpdf-uv-cache"
 export PYTHONDONTWRITEBYTECODE=1
 
@@ -82,7 +82,7 @@ else
     exit 1
 fi
 
-exec "$UV_BINARY" run --offline --no-project --python 3.14 python "$PROJECT_DIR/desktop.py" "$@"
+exec "$UV_BINARY" run --offline --no-project --python '>=3.10' python "$PROJECT_DIR/desktop.py" "$@"
 '''
 
 
