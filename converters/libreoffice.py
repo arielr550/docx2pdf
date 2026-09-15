@@ -31,6 +31,12 @@ def find_soffice(binary: str = "soffice") -> str | None:
     return None
 
 
+def clean_stderr(stderr: str) -> str:
+    # soffice logs this harmless line on every headless launch on macOS.
+    lines = [line for line in stderr.splitlines() if "Task policy set failed" not in line]
+    return "\n".join(lines).strip()
+
+
 class LibreOfficeConverter(Converter):
     def __init__(self, soffice_binary: str = "soffice", timeout_seconds: int = 60) -> None:
         resolved = find_soffice(soffice_binary)
@@ -55,7 +61,7 @@ class LibreOfficeConverter(Converter):
             if not produced.exists():
                 raise RuntimeError(
                     f"LibreOffice did not produce a PDF for {src.name}. "
-                    f"stderr='{result.stderr.strip()}'"
+                    f"stderr='{clean_stderr(result.stderr)}'"
                 )
             shutil.move(str(produced), str(dst))
 
@@ -90,7 +96,7 @@ class LibreOfficeConverter(Converter):
                 ) from exc
         if result.returncode != 0:
             stdout = result.stdout.strip()
-            stderr = result.stderr.strip()
+            stderr = clean_stderr(result.stderr)
             raise RuntimeError(
                 "LibreOffice conversion command failed "
                 f"(exit={result.returncode}). stdout='{stdout}' stderr='{stderr}'"
