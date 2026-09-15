@@ -1,6 +1,0 @@
-[project]
-name = "docxpdf-local"
-version = "0.1.0"
-description = "Local, private DOCX to PDF converter using LibreOffice."
-requires-python = ">=3.14"
-dependencies = []
