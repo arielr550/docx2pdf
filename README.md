@@ -11,10 +11,19 @@ High-fidelity DOCX to PDF conversion using LibreOffice headless mode.
 
 ## Requirements
 
-- `uv` installed
-- LibreOffice installed with `soffice` available in `PATH`
+- `uv` installed (Homebrew or the official installer)
+- LibreOffice installed, either via `brew install --cask libreoffice` or the
+  `.dmg` into `/Applications`. `soffice` is found on `PATH` or inside
+  `LibreOffice.app`.
+- Python 3.10 or newer, which `uv` can provide
 
 ## Easiest usage on macOS
+
+Build the app once (and again after changing the source):
+
+```bash
+uv run --offline python scripts/build_macos_app.py
+```
 
 Open `dist/DOCX to PDF.app`, then choose one or more Word documents. You can also
 drag DOCX files directly onto the app. Each PDF is saved beside its original DOCX,
@@ -23,15 +32,9 @@ so there is no output path to type or remember.
 If a PDF with the same name already exists, the app asks before replacing it.
 Everything runs locally through LibreOffice; the app makes no network calls.
 
-To build or refresh the app after changing the source:
-
-```bash
-uv run --offline python scripts/build_macos_app.py
-```
-
-The resulting app is self-contained with respect to this project's Python source,
-so it can be moved to `/Applications` or the Desktop. It still requires `uv` and
-LibreOffice to be installed on the Mac.
+The app is self-contained with respect to this project's Python source, so it can
+be moved to `/Applications` or the Desktop. It still requires `uv` and LibreOffice
+to be installed on the Mac. `dist/` is a build output and is not committed.
 
 ## Battery and performance
 
@@ -70,13 +73,38 @@ uv run --offline python main.py input.docx output.pdf --overwrite
 - Fails clearly if format is unsupported
 - Fails clearly if `soffice` is missing
 - Uses `soffice --headless --convert-to pdf` for rendering fidelity
+- Renders into a temporary directory and only then moves the PDF into place, so a
+  failed conversion never leaves an old PDF looking like fresh output
+
+## Fonts and fidelity
+
+Pagination only matches Word when the document's fonts are available to
+LibreOffice. Microsoft's defaults (Calibri, Cambria) are usually missing on a Mac,
+and Microsoft Office for Mac keeps its fonts inside its own app bundle where
+LibreOffice cannot see them. Missing fonts are silently substituted, which shifts
+line breaks and page counts.
+
+Install the metric-compatible replacements to keep layout stable:
+
+```bash
+brew install --cask font-carlito font-caladea
+```
+
+For other fonts (for example Aptos), install the actual font files system-wide.
+
+## Tests
+
+```bash
+uv run --offline python -m unittest discover -s tests
+```
+
+`tests/test_integration.py` performs a real conversion and is skipped
+automatically when LibreOffice is not installed.
 
 ## Project Structure
 
 ```text
 project_root/
-├── dist/
-│   └── DOCX to PDF.app
 ├── docx2pdf
 ├── conversion.py
 ├── desktop.py
@@ -88,6 +116,9 @@ project_root/
 │   └── libreoffice.py
 ├── utils/
 │   └── file_ops.py
+├── tests/
+│   ├── test_conversion.py
+│   └── test_integration.py
 ├── pyproject.toml
 └── README.md
 ```

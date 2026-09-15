@@ -45,8 +45,10 @@ The tool must:
 The tool must be runnable as:
 
 ```bash
-uv run python main.py input.docx output.pdf
+uv run python main.py input.docx [output.pdf] [--overwrite]
 ```
+
+The output path defaults to the input path with a `.pdf` suffix.
 
 Future support:
 
@@ -134,7 +136,8 @@ The system must have:
 
 The program must:
 
-* Detect if `soffice` is available in PATH
+* Detect if `soffice` is available in PATH, falling back to the standard macOS
+  `LibreOffice.app` location
 * Provide a clear error if not found
 
 ---
@@ -170,14 +173,20 @@ This requires:
 ```
 project_root/
 │
-├── main.py
+├── main.py              # CLI
+├── desktop.py           # helper invoked by the macOS app
+├── conversion.py        # validation + converter selection
+├── docx2pdf             # shell launcher for the CLI
 ├── converters/
 │   ├── base.py
 │   └── libreoffice.py
-│
 ├── utils/
 │   └── file_ops.py
-│
+├── scripts/
+│   └── build_macos_app.py   # builds dist/DOCX to PDF.app (macOS only, not committed)
+├── tests/
+│   ├── test_conversion.py   # unit tests, LibreOffice mocked
+│   └── test_integration.py  # real conversion, skipped without soffice
 ├── AGENTS.md
 └── README.md
 ```
@@ -216,8 +225,6 @@ These approaches will break formatting fidelity.
   ```
 
 * Directory watch mode
-
-* GUI wrapper (drag & drop)
 
 * Single binary packaging (PyInstaller)
 
