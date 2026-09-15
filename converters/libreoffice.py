@@ -29,7 +29,9 @@ INPUT_FILTERS = {
 def find_soffice(binary: str = "soffice") -> str | None:
     found = shutil.which(binary)
     if found is not None:
-        return found
+        # Launching LibreOffice through a symlink such as /usr/local/bin/soffice
+        # adds about 1.5 seconds of startup on macOS.
+        return os.path.realpath(found)
     for candidate in MACOS_SOFFICE_CANDIDATES:
         if candidate.is_file():
             return str(candidate)

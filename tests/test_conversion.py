@@ -220,6 +220,16 @@ class SofficeLookupTests(unittest.TestCase):
             ):
                 self.assertEqual(LibreOfficeConverter().soffice_binary, str(bundled))
 
+    def test_symlink_on_path_is_resolved(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            real = Path(temp_dir) / "LibreOffice.app" / "soffice"
+            real.parent.mkdir()
+            real.touch()
+            link = Path(temp_dir) / "soffice"
+            link.symlink_to(real)
+            with patch("converters.libreoffice.shutil.which", return_value=str(link)):
+                self.assertEqual(LibreOfficeConverter().soffice_binary, str(real.resolve()))
+
     def test_missing_soffice_fails_clearly(self) -> None:
         with (
             patch("converters.libreoffice.shutil.which", return_value=None),
