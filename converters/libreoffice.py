@@ -13,6 +13,13 @@ MACOS_SOFFICE_CANDIDATES = (
     Path.home() / "Applications/LibreOffice.app/Contents/MacOS/soffice",
 )
 
+# Name the import filter explicitly. Without it LibreOffice falls back to its
+# plain-text importer for unreadable files and "successfully" renders the raw
+# bytes as a PDF instead of failing.
+INPUT_FILTERS = {
+    ".docx": "MS Word 2007 XML",
+}
+
 
 def find_soffice(binary: str = "soffice") -> str | None:
     found = shutil.which(binary)
@@ -58,6 +65,11 @@ class LibreOfficeConverter(Converter):
                 self.soffice_binary,
                 f"-env:UserInstallation={Path(profile_dir).as_uri()}",
                 "--headless",
+            ]
+            input_filter = INPUT_FILTERS.get(input_file.suffix.lower())
+            if input_filter is not None:
+                command.append(f"--infilter={input_filter}")
+            command += [
                 "--convert-to",
                 "pdf",
                 "--outdir",

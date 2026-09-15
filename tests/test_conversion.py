@@ -109,6 +109,16 @@ class LibreOfficeConverterTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "timed out after 1 seconds"):
                 converter._run_soffice(Path("input.docx"), Path("."))
 
+    def test_docx_import_filter_is_forced(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+            with patch(
+                "converters.libreoffice.subprocess.run", side_effect=fake_soffice(b"pdf")
+            ) as run:
+                LibreOfficeConverter()._run_soffice(Path("report.docx"), output_dir)
+
+            self.assertIn("--infilter=MS Word 2007 XML", run.call_args.args[0])
+
     def test_stale_pdf_is_not_reported_as_success(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             src = Path(temp_dir) / "report.docx"
