@@ -1,6 +1,9 @@
 [project]
-name = "docxpdf-local"
+name = "doczap"
 version = "0.1.0"
-description = "Local, private DOCX to PDF converter using LibreOffice."
+description = "Fast, local, private document conversion that keeps the layout intact."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = []

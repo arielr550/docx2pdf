@@ -9,7 +9,7 @@ from conversion import convert_document, default_output_path
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Desktop DOCX to PDF conversion helper.")
+    parser = argparse.ArgumentParser(description="DocZap desktop conversion helper.")
     parser.add_argument("files", nargs="+", help="DOCX files selected in Finder.")
     return parser
 
@@ -19,7 +19,7 @@ def confirm_overwrite(output_path: Path) -> bool:
 on run argv
     set outputName to item 1 of argv
     set answer to display dialog (outputName & " already exists. Replace it?") ¬
-        with title "DOCX to PDF" buttons {"Skip", "Replace"} default button "Skip" ¬
+        with title "DocZap" buttons {"Skip", "Replace"} default button "Skip" ¬
         cancel button "Skip" with icon caution
     return button returned of answer
 end run

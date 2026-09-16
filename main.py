@@ -9,7 +9,8 @@ from conversion import convert_document
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Local, private DOCX to PDF converter powered by LibreOffice."
+        prog="doczap",
+        description="Fast, local, private DOCX to PDF conversion that keeps the layout intact.",
     )
     parser.add_argument("input_file", help="Path to input DOCX file.")
     parser.add_argument(

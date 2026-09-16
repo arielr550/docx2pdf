@@ -104,7 +104,7 @@ class LibreOfficeConverterTests(unittest.TestCase):
         self.addCleanup(which.stop)
         cache_root = tempfile.TemporaryDirectory()
         self.addCleanup(cache_root.cleanup)
-        self.profile_cache = Path(cache_root.name) / "docx2pdf" / "lo-profile"
+        self.profile_cache = Path(cache_root.name) / "doczap" / "lo-profile"
         cache = patch(
             "converters.libreoffice.profile_cache_dir", return_value=self.profile_cache
         )
@@ -134,7 +134,7 @@ class LibreOfficeConverterTests(unittest.TestCase):
                     LibreOfficeConverter()._run_soffice(Path("report.docx"), Path(output_dir))
 
         self.assertNotIn(self.profile_cache.as_uri(), self.profile_used(run))
-        self.assertIn("docxpdf_lo_profile_", self.profile_used(run))
+        self.assertIn("doczap_lo_profile_", self.profile_used(run))
 
     def run_with_fake_soffice(self) -> None:
         with tempfile.TemporaryDirectory() as output_dir:

@@ -1,6 +1,6 @@
-# DOCX to PDF Converter (Local + Private)
+# DocZap
 
-High-fidelity DOCX to PDF conversion using LibreOffice headless mode.
+Fast, local, private DOCX to PDF conversion that keeps the layout intact, using LibreOffice headless mode.
 
 ## Why this approach
 
@@ -25,7 +25,7 @@ Build the app once (and again after changing the source):
 uv run --offline python scripts/build_macos_app.py
 ```
 
-Open `dist/DOCX to PDF.app`, then choose one or more Word documents. You can also
+Open `dist/DocZap.app`, then choose one or more Word documents. You can also
 drag DOCX files directly onto the app. Each PDF is saved beside its original DOCX,
 so there is no output path to type or remember.
 
@@ -43,7 +43,7 @@ to be installed on the Mac. `dist/` is a build output and is not committed.
 - The app runs only when opened or when files are dropped onto it.
 - It installs no login item, background service, watcher, or scheduled task.
 - LibreOffice exits after each conversion and is limited by a 60-second timeout.
-- LibreOffice uses a private profile cached in `~/Library/Caches/docx2pdf/lo-profile`
+- LibreOffice uses a private profile cached in `~/Library/Caches/doczap/lo-profile`
   (about 0.5 MB), which skips its first-start setup on every conversion. A
   concurrent conversion gets a temporary profile instead of sharing it. Delete the
   folder to reset it.
@@ -54,7 +54,7 @@ to be installed on the Mac. `dist/` is a build output and is not committed.
 The short form saves the PDF beside the DOCX:
 
 ```bash
-./docx2pdf "/any/location/report.docx"
+./doczap "/any/location/report.docx"
 ```
 
 You can drag a file from Finder into Terminal instead of typing its path.
@@ -110,7 +110,7 @@ automatically when LibreOffice is not installed.
 
 ```text
 project_root/
-├── docx2pdf
+├── doczap
 ├── conversion.py
 ├── desktop.py
 ├── main.py

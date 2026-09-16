@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import plistlib
+import re
 import shutil
 import stat
 import subprocess
@@ -10,7 +11,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DIST_DIR = PROJECT_ROOT / "dist"
-APP_PATH = DIST_DIR / "DOCX to PDF.app"
+APP_PATH = DIST_DIR / "DocZap.app"
 APP_SOURCE_FILES = ("main.py", "desktop.py", "conversion.py", "pyproject.toml", "uv.lock")
 APP_SOURCE_DIRS = ("converters", "utils")
 UNUSED_PRIVACY_KEYS = (
@@ -40,7 +41,7 @@ on convertFiles(selectedFiles)
 
     try
         set resultMessage to do shell script commandText
-        display notification resultMessage with title "DOCX to PDF"
+        display notification resultMessage with title "DocZap"
     on error errorMessage number errorNumber
         if errorNumber is not -128 then
             display alert "Conversion failed" message errorMessage as critical
@@ -72,13 +73,13 @@ set -eu
 RESOURCE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR="$RESOURCE_DIR/project"
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
-export UV_CACHE_DIR="${TMPDIR:-/tmp}/docxpdf-uv-cache"
+export UV_CACHE_DIR="${TMPDIR:-/tmp}/doczap-uv-cache"
 export PYTHONDONTWRITEBYTECODE=1
 
 if command -v uv >/dev/null 2>&1; then
     UV_BINARY=$(command -v uv)
 else
-    osascript -e 'display alert "DOCX to PDF needs uv" message "Install uv, then open the app again." as critical'
+    osascript -e 'display alert "DocZap needs uv" message "Install uv, then open the app again." as critical'
     exit 1
 fi
 
@@ -128,6 +129,14 @@ def copy_runtime() -> None:
     runner_path.chmod(runner_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
+def project_version() -> str:
+    pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    match = re.search(r'^version = "([^"]+)"', pyproject, re.MULTILINE)
+    if match is None:
+        raise RuntimeError("Could not read the version from pyproject.toml")
+    return match.group(1)
+
+
 def configure_app() -> None:
     plist_path = APP_PATH / "Contents" / "Info.plist"
     with plist_path.open("rb") as plist_file:
@@ -138,10 +147,10 @@ def configure_app() -> None:
 
     info.update(
         {
-            "CFBundleIdentifier": "local.docxpdf.converter",
-            "CFBundleName": "DOCX to PDF",
-            "CFBundleDisplayName": "DOCX to PDF",
-            "CFBundleShortVersionString": "1.0",
+            "CFBundleIdentifier": "io.github.arielr550.doczap",
+            "CFBundleName": "DocZap",
+            "CFBundleDisplayName": "DocZap",
+            "CFBundleShortVersionString": project_version(),
             "CFBundleDocumentTypes": [
                 {
                     "CFBundleTypeName": "Word Document",
