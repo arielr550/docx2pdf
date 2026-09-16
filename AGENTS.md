@@ -136,8 +136,8 @@ The system must have:
 
 The program must:
 
-* Detect if `soffice` is available in PATH, falling back to the standard macOS
-  `LibreOffice.app` location
+* Detect if `soffice` is available in PATH, falling back to the platform's
+  standard install location (for example `LibreOffice.app` on macOS)
 * Provide a clear error if not found
 
 ---
@@ -173,15 +173,18 @@ This requires:
 ```
 project_root/
 │
-├── main.py              # CLI
-├── desktop.py           # helper invoked by the macOS app
-├── conversion.py        # validation + converter selection
-├── doczap               # shell launcher for the CLI
-├── converters/
-│   ├── base.py
-│   └── libreoffice.py
-├── utils/
-│   └── file_ops.py
+├── main.py                  # thin shim: uv run python main.py
+├── doczap                   # shell launcher for the CLI
+├── src/doczap/
+│   ├── cli.py               # CLI (installed as the `doczap` command)
+│   ├── desktop.py           # helper invoked by the macOS app
+│   ├── conversion.py        # validation + converter selection
+│   ├── system.py            # all OS-specific details (paths, locking)
+│   ├── converters/
+│   │   ├── base.py
+│   │   └── libreoffice.py
+│   └── utils/
+│       └── file_ops.py
 ├── scripts/
 │   └── build_macos_app.py   # builds dist/DocZap.app (macOS only, not committed)
 ├── tests/
@@ -190,6 +193,16 @@ project_root/
 ├── AGENTS.md
 └── README.md
 ```
+
+### Cross-platform groundwork
+
+macOS is the only supported platform today; Linux and Windows are planned.
+Keep the core platform-neutral:
+
+* Put anything OS-specific (install paths, cache locations, file locking) in
+  `src/doczap/system.py`, never directly in converters or the CLI
+* Do not import POSIX-only modules (such as `fcntl`) outside `system.py`
+* Desktop front ends (like the macOS app) stay thin wrappers over `conversion.py`
 
 ---
 

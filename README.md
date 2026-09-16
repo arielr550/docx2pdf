@@ -110,17 +110,20 @@ automatically when LibreOffice is not installed.
 
 ```text
 project_root/
-├── doczap
-├── conversion.py
-├── desktop.py
-├── main.py
+├── doczap                   # shell launcher
+├── main.py                  # shim for `uv run python main.py`
+├── src/doczap/
+│   ├── cli.py
+│   ├── conversion.py
+│   ├── desktop.py
+│   ├── system.py            # OS-specific paths and locking
+│   ├── converters/
+│   │   ├── base.py
+│   │   └── libreoffice.py
+│   └── utils/
+│       └── file_ops.py
 ├── scripts/
 │   └── build_macos_app.py
-├── converters/
-│   ├── base.py
-│   └── libreoffice.py
-├── utils/
-│   └── file_ops.py
 ├── tests/
 │   ├── test_conversion.py
 │   └── test_integration.py
@@ -133,5 +136,5 @@ project_root/
 To add new conversions:
 
 1. Add a new converter class implementing `Converter`.
-2. Extend `select_converter(...)` in `conversion.py` with new input/output routing.
+2. Extend `select_converter(...)` in `src/doczap/conversion.py` with new input/output routing.
 3. Keep CLI unchanged.

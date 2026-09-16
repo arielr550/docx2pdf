@@ -12,8 +12,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DIST_DIR = PROJECT_ROOT / "dist"
 APP_PATH = DIST_DIR / "DocZap.app"
-APP_SOURCE_FILES = ("main.py", "desktop.py", "conversion.py", "pyproject.toml", "uv.lock")
-APP_SOURCE_DIRS = ("converters", "utils")
+PACKAGE_DIR = PROJECT_ROOT / "src" / "doczap"
 UNUSED_PRIVACY_KEYS = (
     "NSAppleEventsUsageDescription",
     "NSAppleMusicUsageDescription",
@@ -71,10 +70,10 @@ RUNNER = r'''#!/bin/sh
 set -eu
 
 RESOURCE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-PROJECT_DIR="$RESOURCE_DIR/project"
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 export UV_CACHE_DIR="${TMPDIR:-/tmp}/doczap-uv-cache"
 export PYTHONDONTWRITEBYTECODE=1
+export PYTHONPATH="$RESOURCE_DIR"
 
 if command -v uv >/dev/null 2>&1; then
     UV_BINARY=$(command -v uv)
@@ -83,7 +82,7 @@ else
     exit 1
 fi
 
-exec "$UV_BINARY" run --offline --no-project --python '>=3.10' python "$PROJECT_DIR/desktop.py" "$@"
+exec "$UV_BINARY" run --offline --no-project --python '>=3.10' python -m doczap.desktop "$@"
 '''
 
 
@@ -112,17 +111,11 @@ def compile_applescript() -> None:
 
 def copy_runtime() -> None:
     resources = APP_PATH / "Contents" / "Resources"
-    bundled_project = resources / "project"
-    bundled_project.mkdir()
-
-    for file_name in APP_SOURCE_FILES:
-        shutil.copy2(PROJECT_ROOT / file_name, bundled_project / file_name)
-    for directory_name in APP_SOURCE_DIRS:
-        shutil.copytree(
-            PROJECT_ROOT / directory_name,
-            bundled_project / directory_name,
-            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
-        )
+    shutil.copytree(
+        PACKAGE_DIR,
+        resources / "doczap",
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
 
     runner_path = resources / "run-converter"
     runner_path.write_text(RUNNER, encoding="utf-8")
