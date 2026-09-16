@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Build a **local, private, high-fidelity DOCX → PDF converter**.
+Build **DocZap**, a **local, private, high-fidelity DOCX → PDF converter**.
 
 The tool must:
 
@@ -176,14 +176,14 @@ project_root/
 ├── main.py              # CLI
 ├── desktop.py           # helper invoked by the macOS app
 ├── conversion.py        # validation + converter selection
-├── docx2pdf             # shell launcher for the CLI
+├── doczap               # shell launcher for the CLI
 ├── converters/
 │   ├── base.py
 │   └── libreoffice.py
 ├── utils/
 │   └── file_ops.py
 ├── scripts/
-│   └── build_macos_app.py   # builds dist/DOCX to PDF.app (macOS only, not committed)
+│   └── build_macos_app.py   # builds dist/DocZap.app (macOS only, not committed)
 ├── tests/
 │   ├── test_conversion.py   # unit tests, LibreOffice mocked
 │   └── test_integration.py  # real conversion, skipped without soffice
@@ -221,7 +221,7 @@ These approaches will break formatting fidelity.
 * Batch conversion:
 
   ```bash
-  docx2pdf *.docx
+  doczap *.docx
   ```
 
 * Directory watch mode

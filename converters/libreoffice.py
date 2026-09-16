@@ -78,7 +78,7 @@ def profile_cache_dir() -> Path:
         base = Path.home() / "Library" / "Caches"
     else:
         base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
-    return base / "docx2pdf" / "lo-profile"
+    return base / "doczap" / "lo-profile"
 
 
 @contextmanager
@@ -98,7 +98,7 @@ def libreoffice_profile() -> Iterator[Path]:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             profile = Path(
-                stack.enter_context(tempfile.TemporaryDirectory(prefix="docxpdf_lo_profile_"))
+                stack.enter_context(tempfile.TemporaryDirectory(prefix="doczap_lo_profile_"))
             )
         block_remote_links(profile)
         yield profile
@@ -121,7 +121,7 @@ class LibreOfficeConverter(Converter):
 
         # Always render into an empty directory: LibreOffice can exit 0 without
         # writing anything, so an existing PDF at dst must never count as output.
-        with tempfile.TemporaryDirectory(prefix="docxpdf_") as temp_dir:
+        with tempfile.TemporaryDirectory(prefix="doczap_") as temp_dir:
             temp_dir_path = Path(temp_dir)
             result = self._run_soffice(src, temp_dir_path)
             produced = temp_dir_path / f"{src.stem}.pdf"
